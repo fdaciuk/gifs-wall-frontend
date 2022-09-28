@@ -1,43 +1,92 @@
-import { useState } from 'react'
-import { ReactComponent as Logo } from './logo.svg'
+import { useCallback, useEffect, useState } from 'react'
+import twitterLogo from './assets/twitter-logo.svg'
+
 import './app.css'
 
+const TWITTER_HANDLE = 'fdaciuk'
+const TWITTER_LINK = `https://twitter.com/${TWITTER_HANDLE}`
+
 export function App () {
-  const [count, setCount] = useState(0)
+  const [walletAddress, setWallletAddress] = useState('')
+  const getSolanaClient = () => {
+    const { solana } = window
+    if (typeof solana === 'undefined') {
+      throw new Error('Solana object not found! Get a Phantom Wallet 👻')
+    }
+
+    if (solana.isPhantom === false) {
+      throw new Error('You need a Phantom Wallet 👻')
+    }
+
+    return solana
+  }
+
+  const checkIfWalletIsConnected = useCallback(async () => {
+    try {
+      const solana = getSolanaClient()
+
+      console.log('Phantom wallet found!')
+      const response = await solana.connect({ onlyIfTrusted: true })
+      const keyString = response.publicKey.toString()
+      console.log(
+        'Connected with Public Key:',
+        response.publicKey,
+        typeof response.publicKey,
+        keyString,
+      )
+      setWallletAddress(keyString)
+    } catch (e) {
+      console.error('Error:', e)
+    }
+  }, [])
+
+  const connectWallet = async () => {
+    try {
+      const solana = getSolanaClient()
+      const response = await solana.connect()
+      setWallletAddress(response.publicKey.toString())
+    } catch (e) {
+      console.error('Error: connectWallet: ', e)
+    }
+  }
+
+  const renderNotConnectedContainer = () => (
+    <button
+      className='cta-button connect-wallet-button'
+      onClick={connectWallet}
+    >
+      Connect to Wallet
+    </button>
+  )
+
+  useEffect(() => {
+    const onLoad = () => checkIfWalletIsConnected()
+    window.addEventListener('load', onLoad)
+    return () => window.removeEventListener('load', onLoad)
+  }, [checkIfWalletIsConnected])
 
   return (
     <div className='App'>
-      <header className='App-header'>
-        <Logo className='App-logo' title='logo' />
-        <p>Hello Vite + React!</p>
-        <p>
-          <button type='button' onClick={() => setCount((count) => count + 1)}>
-            count is: {count}
-          </button>
-        </p>
-        <p>
-          Edit <code>App.tsx</code> and save to test HMR updates.
-        </p>
-        <p>
+      <div className={walletAddress ? 'authed-container' : 'container'}>
+        <div className='header-container'>
+          <p className='header'>🖼 GIF Portal</p>
+          <p className='sub-text'>
+            View your GIF collection in the metaverse ✨
+          </p>
+          {walletAddress === '' && renderNotConnectedContainer()}
+        </div>
+        <div className='footer-container'>
+          <img alt='Twitter Logo' className='twitter-logo' src={twitterLogo} />
           <a
-            className='App-link'
-            href='https://reactjs.org'
+            className='footer-text'
+            href={TWITTER_LINK}
             target='_blank'
-            rel='noopener noreferrer'
+            rel='noreferrer'
           >
-            Learn React
+            {`built on @${TWITTER_HANDLE}`}
           </a>
-          {' | '}
-          <a
-            className='App-link'
-            href='https://vitejs.dev/guide/features.html'
-            target='_blank'
-            rel='noopener noreferrer'
-          >
-            Vite Docs
-          </a>
-        </p>
-      </header>
+        </div>
+      </div>
     </div>
   )
 }
