@@ -1,100 +1,21 @@
-import { Buffer } from 'buffer'
 import { FormEvent, useCallback, useEffect, useState } from 'react'
-import { Connection, PublicKey, clusterApiUrl, ConfirmOptions } from '@solana/web3.js'
-import { Program, AnchorProvider, web3 } from '@project-serum/anchor'
 import twitterLogo from './assets/twitter-logo.svg'
-import keyPairJson from './keypair.json'
+import {
+  addGifToBlockchain,
+  getAddressIfIsTrusted,
+  getBaseAccountData,
+  getWalletAddress,
+  startup,
+  GifItem,
+} from '@/resources/web3'
 
 import './app.css'
-
-// TODO: move to another file
-window.Buffer = Buffer
-
-const { SystemProgram } = web3
-
-const kp = keyPairJson as any // TODO: remove any and type properly
-const arr: number[] = Object.values(kp._keypair.secretKey)
-const secret = new Uint8Array(arr)
-const baseAccount = web3.Keypair.fromSecretKey(secret)
-
-const programID = new PublicKey('8oJLsdGcukkSvFor38wbJvkU3UUgGhsuadHSGJHW4PtZ')
-const network = clusterApiUrl('devnet')
-
-const opts: ConfirmOptions = {
-  preflightCommitment: 'processed',
-}
-
-const getProvider = () => {
-  const connection = new Connection(network, opts.preflightCommitment)
-  const provider = new AnchorProvider(
-    connection,
-    getSolanaClient(),
-    opts,
-  )
-  return provider
-}
-
-const getSolanaClient = () => {
-  const { solana } = window
-  if (typeof solana === 'undefined') {
-    throw new Error('Solana object not found! Get a Phantom Wallet 👻')
-  }
-
-  if (solana.isPhantom === false) {
-    throw new Error('You need a Phantom Wallet 👻')
-  }
-
-  return solana
-}
-
-type GifItem = {
-  gifLink: string
-  userAddress: string
-}
-
-type Account = {
-  gifList: GifItem[]
-  totalGifs: number
-}
-
-type GetBaseAccountData = () => Promise<Account>
-const getBaseAccountData: GetBaseAccountData = async () => {
-  const program = await getProgram()
-  const account = await program.account.baseAccount.fetch(baseAccount.publicKey)
-
-  if (isAccount(account)) {
-    return account
-  }
-
-  throw new Error('Account invalid')
-}
-
-const isAccount = (account: any): account is Account => {
-  if (typeof account !== 'object') {
-    return false
-  }
-
-  if (account === null) {
-    return false
-  }
-
-  return Object.hasOwn(account, 'gifList') &&
-    Object.hasOwn(account, 'totalGifs')
-}
-
-const getProgram = async () => {
-  const idl = await Program.fetchIdl(programID, getProvider())
-  if (idl === null) {
-    throw new Error('fn getProgram: IDL is null')
-  }
-  return new Program(idl, programID, getProvider())
-}
 
 const TWITTER_HANDLE = 'fdaciuk'
 const TWITTER_LINK = `https://twitter.com/${TWITTER_HANDLE}`
 
 export function App () {
-  const [walletAddress, setWallletAddress] = useState('')
+  const [walletAddress, setWalletAddress] = useState('')
   const [gifList, setGifList] = useState<GifItem[] | null>([])
 
   const getGifList = useCallback(async () => {
@@ -109,74 +30,23 @@ export function App () {
   }, [])
 
   const createGifAccount = useCallback(async () => {
-    try {
-      const provider = getProvider()
-      const program = await getProgram()
-
-      console.log('ping')
-
-      await program.rpc.startStuffOff({
-        accounts: {
-          baseAccount: baseAccount.publicKey,
-          user: provider.wallet.publicKey,
-          systemProgram: SystemProgram.programId,
-        },
-        signers: [baseAccount],
-      })
-      console.log('Created a new BaseAccount w/ address:', baseAccount.publicKey.toString())
-      await getGifList()
-    } catch (error) {
-      console.error('Error creating baseAccount:', error)
-    }
+    await startup()
+    await getGifList()
   }, [getGifList])
 
   const checkIfWalletIsConnected = useCallback(async () => {
-    try {
-      const solana = getSolanaClient()
-
-      console.log('Phantom wallet found!')
-      const response = await solana.connect({ onlyIfTrusted: true })
-      const keyString = response.publicKey.toString()
-      console.log(
-        'Connected with Public Key:',
-        response.publicKey,
-        typeof response.publicKey,
-        keyString,
-      )
-      setWallletAddress(keyString)
-    } catch (e) {
-      console.error('Error:', e)
-    }
+    const walletAddress = await getAddressIfIsTrusted()
+    setWalletAddress(walletAddress)
   }, [])
 
-  const connectWallet = async () => {
-    try {
-      const solana = getSolanaClient()
-      const response = await solana.connect()
-      setWallletAddress(response.publicKey.toString())
-    } catch (e) {
-      console.error('Error: connectWallet: ', e)
-    }
-  }
+  const connectWallet = useCallback(async () => {
+    const walletAddress = await getWalletAddress()
+    setWalletAddress(walletAddress)
+  }, [])
 
   const sendGif = async (gif: string) => {
-    try {
-      const url = new URL(gif)
-      console.log('Gif link:', url)
-
-      const provider = getProvider()
-      const program = await getProgram()
-      await program.rpc.addGif(gif, {
-        accounts: {
-          baseAccount: baseAccount.publicKey,
-          user: provider.wallet.publicKey,
-        },
-      })
-
-      await getGifList()
-    } catch (e) {
-      console.log('Empty input or not a valid URL. Try again.', e)
-    }
+    await addGifToBlockchain(gif)
+    await getGifList()
   }
 
   type MyFormEvent = FormEvent<HTMLFormElement> & {
