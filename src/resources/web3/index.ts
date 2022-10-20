@@ -4,8 +4,8 @@ import keyPairJson from '@/keypair.json'
 
 const { SystemProgram } = web3
 
-const kp = keyPairJson as any // TODO: remove any and type properly
-const arr: number[] = Object.values(kp._keypair.secretKey)
+const kp = keyPairJson
+const arr = Object.values(kp._keypair.secretKey)
 const secret = new Uint8Array(arr)
 export const baseAccount = web3.Keypair.fromSecretKey(secret)
 
