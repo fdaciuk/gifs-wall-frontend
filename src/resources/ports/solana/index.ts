@@ -1,13 +1,14 @@
 import { Connection, PublicKey, clusterApiUrl, ConfirmOptions } from '@solana/web3.js'
 import { Program, AnchorProvider, web3 } from '@project-serum/anchor'
 import keyPairJson from '@/keypair.json'
+import { Account, GetBaseAccountData } from '@/resources/ports/adapters/web3/types'
 
 const { SystemProgram } = web3
 
 const kp = keyPairJson
 const arr = Object.values(kp._keypair.secretKey)
 const secret = new Uint8Array(arr)
-export const baseAccount = web3.Keypair.fromSecretKey(secret)
+const baseAccount = web3.Keypair.fromSecretKey(secret)
 
 const programID = new PublicKey('8oJLsdGcukkSvFor38wbJvkU3UUgGhsuadHSGJHW4PtZ')
 const network = clusterApiUrl('devnet')
@@ -16,7 +17,7 @@ const opts: ConfirmOptions = {
   preflightCommitment: 'processed',
 }
 
-export const getProvider = () => {
+const getProvider = () => {
   const connection = new Connection(network, opts.preflightCommitment)
   const provider = new AnchorProvider(
     connection,
@@ -26,7 +27,7 @@ export const getProvider = () => {
   return provider
 }
 
-export const getSolanaClient = () => {
+const getSolanaClient = () => {
   const { solana } = window
   if (typeof solana === 'undefined') {
     throw new Error('Solana object not found! Get a Phantom Wallet 👻')
@@ -39,17 +40,6 @@ export const getSolanaClient = () => {
   return solana
 }
 
-export type GifItem = {
-  gifLink: string
-  userAddress: string
-}
-
-type Account = {
-  gifList: GifItem[]
-  totalGifs: number
-}
-
-type GetBaseAccountData = () => Promise<Account>
 export const getBaseAccountData: GetBaseAccountData = async () => {
   const program = await getProgram()
   const account = await program.account.baseAccount.fetch(baseAccount.publicKey)
@@ -74,7 +64,7 @@ const isAccount = (account: any): account is Account => {
     Object.hasOwn(account, 'totalGifs')
 }
 
-export const getProgram = async () => {
+const getProgram = async () => {
   const idl = await Program.fetchIdl(programID, getProvider())
   if (idl === null) {
     throw new Error('fn getProgram: IDL is null')
