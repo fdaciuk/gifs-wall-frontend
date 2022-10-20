@@ -7,7 +7,7 @@ import {
   getWalletAddress,
   startup,
   GifItem,
-} from '@/resources/web3'
+} from '@/resources/ports/adapters/web3'
 
 import './app.css'
 
