@@ -86,16 +86,17 @@ export const startup = async () => {
   try {
     const provider = getProvider()
     const program = await getProgram()
+    const accounts = {
+      baseAccount: baseAccount.publicKey,
+      user: provider.wallet.publicKey,
+      systemProgram: SystemProgram.programId,
+    }
 
-    // TODO: rpc is deprecated
-    await program.rpc.startStuffOff({
-      accounts: {
-        baseAccount: baseAccount.publicKey,
-        user: provider.wallet.publicKey,
-        systemProgram: SystemProgram.programId,
-      },
-      signers: [baseAccount],
-    })
+    await program.methods
+      .startStuffOff()
+      .accounts(accounts)
+      .signers([baseAccount])
+      .rpc()
     console.log('Created a new BaseAccount w/ address:', baseAccount.publicKey.toString())
   } catch (error) {
     console.error('Error creating baseAccount:', error)
@@ -140,13 +141,14 @@ export const addGifToBlockchain = async (gif: string) => {
 
     const provider = getProvider()
     const program = await getProgram()
-    // TODO: rpc is deprecated
-    await program.rpc.addGif(gif, {
-      accounts: {
-        baseAccount: baseAccount.publicKey,
-        user: provider.wallet.publicKey,
-      },
-    })
+    const accounts = {
+      baseAccount: baseAccount.publicKey,
+      user: provider.wallet.publicKey,
+    }
+    await program.methods
+      .addGif(gif)
+      .accounts(accounts)
+      .rpc()
   } catch (e) {
     console.log('Empty input or not a valid URL. Try again.', e)
   }
